@@ -6,7 +6,51 @@
 <title>Absensi Pro</title>
 
 <!--
+==========================================================
+  ABSENSI PRO — Setup Guide (Tanpa Firebase)
+==========================================================
 
+LANGKAH 1: Buat Google Sheet
+  → Buka https://sheets.google.com → buat spreadsheet baru
+  → Beri nama: "Absensi Pro"
+  → Salin ID dari URL:
+    https://docs.google.com/spreadsheets/d/[ID_INI]/edit
+  → Sheet "Users", "Absensi", dan "Izin" akan dibuat
+    otomatis saat pertama kali digunakan.
+
+LANGKAH 2: Deploy Google Apps Script
+  → Buka https://script.google.com → New Project
+  → Beri nama: "Absensi Pro"
+  → Paste seluruh isi file Code.gs ke editor
+  → Ganti nilai SPREADSHEET_ID dengan ID sheet kamu
+  → Klik Deploy → New Deployment
+     · Type        : Web App
+     · Execute as  : Me
+     · Who has access: Anyone
+  → Authorize → Salin Web App URL
+
+LANGKAH 3: Isi GAS_URL di bawah
+  → Cari baris: const GAS_URL = 'https://script.google.com/macros/s/AKfycbwG1i-gi2W9EojoEgB-soDi_Bdkcbh3a2fz_qJKPIhDNAefmHQzmxEG0S_UXrLNWFEj/exec';
+  → Ganti dengan URL Web App dari langkah 2
+
+LANGKAH 4: Host file ini (pilih salah satu)
+  A. GitHub Pages (gratis):
+     - Upload file ini ke repo GitHub
+     - Settings > Pages > Deploy from branch
+
+  B. Firebase Hosting (gratis):
+     - firebase deploy (taruh di folder public/)
+
+  C. Google Sites:
+     - Insert > Embed > By URL
+
+LANGKAH 5: Buat akun Admin pertama
+  → Daftar akun biasa lewat aplikasi
+  → Buka Google Sheet > tab "Users"
+  → Ubah kolom "role" dari "karyawan" menjadi "admin"
+  → Reload aplikasi
+
+==========================================================
 -->
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
@@ -559,10 +603,9 @@ textarea.form-control { resize: none; height: 80px; }
 //  KONFIGURASI — GANTI NILAI DI BAWAH INI
 //  Dapatkan dari: Deploy Google Apps Script sebagai Web App
 // ============================================================
-const GAS_URL = 'GANTI_SCRIPT_URL';
 // ============================================================
 
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwG1i-gi2W9EojoEgB-soDi_Bdkcbh3a2fz_qJKPIhDNAefmHQzmxEG0S_UXrLNWFEj/exec';
+const DEMO = (GAS_URL === 'GANTI_SCRIPT_URL');
 
 let currentUser = null;
 let profile     = null;
