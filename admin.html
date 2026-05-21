@@ -35,7 +35,9 @@ body {
 
 /* ---- LOGIN ---- */
 #login-screen {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  display: none; /* hidden by default, shown by JS */
+  position: fixed; inset: 0; z-index: 999;
+  align-items: center; justify-content: center;
   background: linear-gradient(135deg, #0f3f6e 0%, #185FA5 50%, #2E75B6 100%);
 }
 .login-box {
@@ -358,8 +360,7 @@ tr:hover td { background: var(--bg2); }
       </div>
       <div class="card">
         <div class="rekap-header">
-          <select id="rekap-month" class="form-control" style="width:auto;">
-          </select>
+          <select id="rekap-month" class="form-control" style="width:auto;"></select>
           <button class="btn-filter" onclick="loadRekap()"><i class="ti ti-refresh"></i> Tampilkan</button>
           <span class="rekap-info" id="rekap-info">–</span>
         </div>
@@ -393,9 +394,9 @@ tr:hover td { background: var(--bg2); }
 
 <script>
 // ============================================================
-//  KONFIGURASI — Ganti dengan URL Apps Script kamu
+//  KONFIGURASI
 // ============================================================
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzbPdBjHzBylNApQgvHr3goeaI078uDtIkFdkmmJVJkG3BORFW-5kdaEyKx6QMwKr5u/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycby__m289JmXl4QBC33QaETAxpxUd6mHWtGflnzmRGcwUjMFMh3J688iyPY_PjulgUk-/exec';
 // ============================================================
 
 let adminUser  = null;
@@ -403,22 +404,37 @@ let adminToken = null;
 
 // ---- INIT ----
 (function init() {
+  // Selalu sembunyikan login dulu, baru cek sesi
+  const loginEl     = document.getElementById('login-screen');
+  const dashboardEl = document.getElementById('dashboard-screen');
+  loginEl.style.display     = 'none';
+  dashboardEl.style.display = 'none';
+
   try {
     const raw = localStorage.getItem('admin_session');
     if (raw) {
       const sess = JSON.parse(raw);
-      if (sess.user.role === 'admin') {
+      if (sess && sess.user && sess.user.role === 'admin' && sess.token) {
         adminToken = sess.token;
         adminUser  = sess.user;
         showDashboard();
         return;
       }
     }
-  } catch(e) {}
-  document.getElementById('login-screen').style.display = 'flex';
+  } catch(e) {
+    console.error('Session parse error:', e);
+  }
+
+  // Tidak ada sesi valid → tampilkan login
+  showLogin();
 })();
 
-// Set tanggal hari ini di filter
+function showLogin() {
+  document.getElementById('login-screen').style.display  = 'flex';
+  document.getElementById('dashboard-screen').style.display = 'none';
+}
+
+// Tanggal hari ini format YYYY-MM-DD (waktu lokal)
 const todayStr = () => {
   const d = new Date();
   return d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2);
@@ -451,15 +467,9 @@ function toast(msg) {
 
 function badgeHtml(status) {
   const map = {
-    hadir:      'badge-hadir',
-    terlambat:  'badge-terlambat',
-    absen:      'badge-absen',
-    izin:       'badge-izin',
-    pending:    'badge-pending',
-    disetujui:  'badge-disetujui',
-    ditolak:    'badge-ditolak',
-    admin:      'badge-admin',
-    karyawan:   'badge-izin',
+    hadir:'badge-hadir', terlambat:'badge-terlambat', absen:'badge-absen',
+    izin:'badge-izin', pending:'badge-pending', disetujui:'badge-disetujui',
+    ditolak:'badge-ditolak', admin:'badge-admin', karyawan:'badge-izin',
   };
   const label = {
     hadir:'Hadir', terlambat:'Terlambat', absen:'Absen', izin:'Izin',
@@ -505,12 +515,11 @@ async function doLogin() {
 function doLogout() {
   localStorage.removeItem('admin_session');
   adminToken = null; adminUser = null;
-  document.getElementById('dashboard-screen').style.display = 'none';
-  document.getElementById('login-screen').style.display = 'flex';
+  showLogin();
 }
 
 function showDashboard() {
-  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display  = 'none';
   document.getElementById('dashboard-screen').style.display = 'block';
 
   const name = adminUser?.name || 'Admin';
@@ -518,18 +527,13 @@ function showDashboard() {
   document.getElementById('admin-ava').textContent  = initials(name);
   document.getElementById('greet-name').textContent = name;
 
-  // Tanggal
   const days   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
   const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const now    = new Date();
   document.getElementById('greet-date').textContent = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
 
-  // Set default filter tanggal
   document.getElementById('filter-tgl').value = todayStr();
-
-  // Isi dropdown bulan rekap
   fillMonthDropdown();
-
   loadBeranda();
 }
 
@@ -552,12 +556,16 @@ function switchPage(name) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(b => {
-    if (b.textContent.toLowerCase().includes(name === 'beranda' ? 'beranda' : name === 'absensi' ? 'absensi' : name === 'izin' ? 'izin' : name === 'rekap' ? 'rekap' : 'karyawan')) {
-      b.classList.add('active');
-    }
+    const t = b.textContent.toLowerCase();
+    if (
+      (name === 'beranda'   && t.includes('beranda'))  ||
+      (name === 'absensi'   && t.includes('absensi'))  ||
+      (name === 'izin'      && t.includes('izin'))     ||
+      (name === 'rekap'     && t.includes('rekap'))    ||
+      (name === 'karyawan'  && t.includes('karyawan'))
+    ) b.classList.add('active');
   });
 
-  if (name === 'absensi')  {} // tunggu user filter
   if (name === 'izin')     loadIzin();
   if (name === 'rekap')    loadRekap();
   if (name === 'karyawan') loadKaryawan();
@@ -565,10 +573,8 @@ function switchPage(name) {
 
 // ---- BERANDA ----
 async function loadBeranda() {
-  const res = await api('adminGetToday', { tanggal: todayStr() });
-  const tbody = document.getElementById('today-tbody');
-
-  // Hitung pending izin
+  const res     = await api('adminGetToday', { tanggal: todayStr() });
+  const tbody   = document.getElementById('today-tbody');
   const izinRes = await api('adminGetPendingIzin');
   document.getElementById('s-pending').textContent = izinRes.ok ? izinRes.data.length : '–';
 
@@ -584,9 +590,9 @@ async function loadBeranda() {
     if (d.status === 'terlambat') { hadir++; terlambat++; }
   });
 
-  document.getElementById('s-hadir').textContent    = hadir;
+  document.getElementById('s-hadir').textContent     = hadir;
   document.getElementById('s-terlambat').textContent = terlambat;
-  document.getElementById('s-belum').textContent    = '–';
+  document.getElementById('s-belum').textContent     = '–';
 
   if (!data.length) {
     tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><i class="ti ti-users"></i><p>Belum ada yang absen hari ini</p></div></td></tr>`;
@@ -611,8 +617,8 @@ async function loadAbsensiByDate() {
   if (!tgl) { toast('Pilih tanggal dulu!'); return; }
 
   tbody.innerHTML = `<tr><td colspan="7"><div class="spinner"></div></td></tr>`;
-
   const res = await api('adminGetToday', { tanggal: tgl });
+
   if (!res.ok) {
     tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-alert-circle"></i><p>${res.error}</p></div></td></tr>`;
     return;
@@ -640,21 +646,19 @@ async function loadAbsensiByDate() {
 async function loadIzin() {
   const pendingTbody = document.getElementById('izin-pending-tbody');
   const histTbody    = document.getElementById('izin-hist-tbody');
-
   pendingTbody.innerHTML = `<tr><td colspan="6"><div class="spinner"></div></td></tr>`;
   histTbody.innerHTML    = `<tr><td colspan="6"><div class="spinner"></div></td></tr>`;
 
   const res = await api('adminGetAllIzin');
   if (!res.ok) {
     pendingTbody.innerHTML = `<tr><td colspan="6"><div class="empty"><i class="ti ti-alert-circle"></i><p>${res.error}</p></div></td></tr>`;
-    histTbody.innerHTML    = `<tr><td colspan="6"><div class="empty"><i class="ti ti-alert-circle"></i><p>${res.error}</p></div></td></tr>`;
+    histTbody.innerHTML    = pendingTbody.innerHTML;
     return;
   }
 
   const pending = (res.data || []).filter(d => d.status === 'pending');
   const hist    = (res.data || []).filter(d => d.status !== 'pending');
 
-  // Pending
   if (!pending.length) {
     pendingTbody.innerHTML = `<tr><td colspan="6"><div class="empty"><i class="ti ti-checks"></i><p>Tidak ada pengajuan menunggu</p></div></td></tr>`;
   } else {
@@ -674,7 +678,6 @@ async function loadIzin() {
       </tr>`).join('');
   }
 
-  // Riwayat
   if (!hist.length) {
     histTbody.innerHTML = `<tr><td colspan="6"><div class="empty"><i class="ti ti-file-off"></i><p>Belum ada riwayat pengajuan</p></div></td></tr>`;
   } else {
@@ -693,13 +696,8 @@ async function loadIzin() {
 async function updateIzin(id, status, btn) {
   btn.closest('tr').querySelectorAll('button').forEach(b => b.disabled = true);
   const res = await api('adminUpdateIzin', { izinId: id, status });
-  if (res.ok) {
-    toast('Status diperbarui: ' + status + ' ✅');
-    loadIzin();
-  } else {
-    toast('Gagal: ' + res.error);
-    btn.closest('tr').querySelectorAll('button').forEach(b => b.disabled = false);
-  }
+  if (res.ok) { toast('Status diperbarui: ' + status + ' ✅'); loadIzin(); }
+  else { toast('Gagal: ' + res.error); btn.closest('tr').querySelectorAll('button').forEach(b => b.disabled = false); }
 }
 
 // ---- REKAP ----
@@ -714,9 +712,8 @@ async function loadRekap() {
     return;
   }
 
-  const data = res.data || [];
   document.getElementById('rekap-info').textContent = `Total hari kerja: ${res.hariKerja} hari`;
-
+  const data = res.data || [];
   if (!data.length) {
     tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-chart-bar"></i><p>Belum ada data untuk bulan ini</p></div></td></tr>`;
     return;
