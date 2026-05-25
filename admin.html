@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Dashboard — Absensi JW Manajemen</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
@@ -21,6 +24,10 @@
   --danger-light: #FCEBEB;
   --purple: #534AB7;
   --purple-light: #EEEDFE;
+  --orange: #C05621;
+  --orange-light: #FEF0E7;
+  --teal: #0D7490;
+  --teal-light: #E0F5F9;
   --t1: #1C1C1E; --t2: #3C3C43; --t3: #8E8E93;
   --bg1: #FFFFFF; --bg2: #F2F2F7; --bg3: #E5E5EA;
   --border: rgba(60,60,67,0.12);
@@ -35,7 +42,7 @@ body {
 
 /* ---- LOGIN ---- */
 #login-screen {
-  display: none; /* hidden by default, shown by JS */
+  display: none;
   position: fixed; inset: 0; z-index: 999;
   align-items: center; justify-content: center;
   background: linear-gradient(135deg, #0f3f6e 0%, #185FA5 50%, #2E75B6 100%);
@@ -60,6 +67,19 @@ body {
   transition: border-color 0.15s; background: var(--bg2);
 }
 .form-control:focus { outline: none; border-color: var(--brand); background: white; }
+
+/* Password field with eye toggle */
+.pass-wrap { position: relative; }
+.pass-wrap .form-control { width: 100%; padding-right: 44px; }
+.btn-eye {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; color: var(--t3);
+  display: flex; align-items: center; padding: 4px; border-radius: 6px;
+  transition: color 0.15s;
+}
+.btn-eye:hover { color: var(--brand); }
+.btn-eye i { font-size: 18px; }
+
 .btn-primary {
   width: 100%; padding: 13px; border-radius: 10px; border: none;
   background: var(--brand); color: white; font-size: 15px; font-weight: 700;
@@ -127,15 +147,16 @@ body {
 }
 .card-title { font-size: 13px; font-weight: 700; color: var(--t2); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-/* Stat chips */
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+/* Stat chips — now 6 cols on beranda */
+.stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 20px; }
+.stats-grid-4 { grid-template-columns: repeat(4, 1fr); }
 .stat-card {
   background: white; border-radius: 14px; border: 1px solid var(--border);
   padding: 18px 16px;
 }
 .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 12px; }
-.stat-val { font-size: 28px; font-weight: 800; }
-.stat-key { font-size: 12px; color: var(--t3); margin-top: 3px; font-weight: 500; }
+.stat-val { font-size: 26px; font-weight: 800; }
+.stat-key { font-size: 11px; color: var(--t3); margin-top: 3px; font-weight: 500; }
 
 /* Table */
 .table-wrap { overflow-x: auto; }
@@ -148,16 +169,21 @@ tr:hover td { background: var(--bg2); }
 
 /* Badge */
 .badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
-.badge-hadir { background: var(--success-light); color: #085041; }
+.badge-hadir     { background: var(--success-light); color: #085041; }
 .badge-terlambat { background: var(--warn-light); color: #633806; }
-.badge-absen { background: var(--danger-light); color: #791F1F; }
-.badge-izin { background: var(--brand-light); color: #0C447C; }
-.badge-pending { background: var(--warn-light); color: #633806; }
+.badge-absen     { background: var(--danger-light); color: #791F1F; }
+.badge-izin      { background: var(--brand-light); color: #0C447C; }
+.badge-pending   { background: var(--warn-light); color: #633806; }
 .badge-disetujui { background: var(--success-light); color: #085041; }
-.badge-ditolak { background: var(--danger-light); color: #791F1F; }
-.badge-admin { background: var(--purple-light); color: var(--purple); }
-.badge-bekerja { background: var(--success-light); color: #085041; }
-.badge-tidak { background: var(--bg3); color: var(--t3); }
+.badge-ditolak   { background: var(--danger-light); color: #791F1F; }
+.badge-admin     { background: var(--purple-light); color: var(--purple); }
+.badge-bekerja   { background: var(--success-light); color: #085041; }
+.badge-tidak     { background: var(--bg3); color: var(--t3); }
+/* Jenis hari */
+.badge-normal  { background: var(--bg3); color: var(--t2); }
+.badge-minggu  { background: var(--purple-light); color: var(--purple); }
+.badge-libur   { background: var(--orange-light); color: var(--orange); }
+.badge-lembur  { background: var(--teal-light); color: var(--teal); }
 
 /* Avatar */
 .ava { width: 32px; height: 32px; border-radius: 50%; background: var(--brand-light); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--brand); flex-shrink: 0; }
@@ -174,6 +200,16 @@ tr:hover td { background: var(--bg2); }
   color: white; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
   display: flex; align-items: center; gap: 6px;
 }
+.btn-dl {
+  padding: 9px 16px; border-radius: 10px; border: none;
+  font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; gap: 6px;
+}
+.btn-dl-excel { background: #1D6A38; color: white; }
+.btn-dl-excel:hover { background: #155228; }
+.btn-dl-pdf   { background: #B02424; color: white; }
+.btn-dl-pdf:hover   { background: #8B1C1C; }
+.btn-dl:disabled { opacity: 0.5; pointer-events: none; }
 
 /* Action buttons */
 .btn-approve { padding: 6px 14px; background: var(--success-light); color: #085041; border: none; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
@@ -199,12 +235,37 @@ tr:hover td { background: var(--bg2); }
 #toast.show { opacity: 1; }
 
 /* Rekap */
-.rekap-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.rekap-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
 .rekap-month { font-size: 18px; font-weight: 800; }
 .rekap-info { font-size: 12px; color: var(--t3); background: var(--bg2); padding: 6px 12px; border-radius: 8px; }
 
+/* Legend */
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--t2); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* Summary bar inside beranda */
+.summary-bar {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px;
+}
+.summary-item {
+  background: var(--bg2); border-radius: 10px; padding: 12px 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.summary-item i { font-size: 20px; }
+.summary-item .s-num { font-size: 20px; font-weight: 800; }
+.summary-item .s-lbl { font-size: 11px; color: var(--t3); margin-top: 2px; }
+
 /* Hidden */
 .hidden { display: none !important; }
+
+/* Responsive tweak for 4-stat grid on smaller screens */
+@media (max-width: 1200px) {
+  .stats-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 800px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
 </head>
 <body>
@@ -226,12 +287,18 @@ tr:hover td { background: var(--bg2); }
     </div>
     <div class="form-group">
       <label class="form-label">Password</label>
-      <input class="form-control" type="password" id="l-pass" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+      <div class="pass-wrap">
+        <input class="form-control" type="password" id="l-pass" placeholder="Password"
+          onkeydown="if(event.key==='Enter')doLogin()">
+        <button class="btn-eye" type="button" onclick="togglePass()" id="btn-eye" title="Tampilkan/sembunyikan password">
+          <i class="ti ti-eye" id="eye-icon"></i>
+        </button>
+      </div>
     </div>
     <button class="btn-primary" id="btn-login" onclick="doLogin()">
       <i class="ti ti-login"></i> Masuk ke Dashboard
     </button>
-    <p style="text-align:center;font-size:11px;color:var(--t3);margin-top:16px;">Hanya untuk Admin & HRD</p>
+    <p style="text-align:center;font-size:11px;color:var(--t3);margin-top:16px;">Hanya untuk Admin &amp; HRD</p>
   </div>
 </div>
 
@@ -272,6 +339,8 @@ tr:hover td { background: var(--bg2); }
         <h1>Selamat datang, <span id="greet-name">Admin</span> 👋</h1>
         <p id="greet-date">Memuat...</p>
       </div>
+
+      <!-- 6 stat cards -->
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-icon" style="background:var(--success-light);color:var(--success);"><i class="ti ti-user-check"></i></div>
@@ -284,6 +353,11 @@ tr:hover td { background: var(--bg2); }
           <div class="stat-key">Terlambat</div>
         </div>
         <div class="stat-card">
+          <div class="stat-icon" style="background:var(--teal-light);color:var(--teal);"><i class="ti ti-clock-bolt"></i></div>
+          <div class="stat-val" id="s-lembur" style="color:var(--teal);">–</div>
+          <div class="stat-key">Lembur / Shift Ekstra</div>
+        </div>
+        <div class="stat-card">
           <div class="stat-icon" style="background:var(--danger-light);color:var(--danger);"><i class="ti ti-user-x"></i></div>
           <div class="stat-val" id="s-belum" style="color:var(--danger);">–</div>
           <div class="stat-key">Belum Absen</div>
@@ -293,14 +367,49 @@ tr:hover td { background: var(--bg2); }
           <div class="stat-val" id="s-pending" style="color:var(--brand);">–</div>
           <div class="stat-key">Izin Menunggu</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:var(--orange-light);color:var(--orange);"><i class="ti ti-calendar-event"></i></div>
+          <div class="stat-val" id="s-hari-jenis" style="color:var(--orange);font-size:14px;margin-top:6px;">–</div>
+          <div class="stat-key">Jenis Hari Ini</div>
+        </div>
+      </div>
+
+      <!-- Summary bar -->
+      <div class="summary-bar" id="summary-bar" style="display:none;">
+        <div class="summary-item">
+          <i class="ti ti-calendar-week" style="color:var(--t3);"></i>
+          <div>
+            <div class="s-num" id="sum-normal">0</div>
+            <div class="s-lbl">Hadir Normal (Senin–Sabtu)</div>
+          </div>
+        </div>
+        <div class="summary-item">
+          <i class="ti ti-rotate-clockwise" style="color:var(--purple);"></i>
+          <div>
+            <div class="s-num" id="sum-minggu" style="color:var(--purple);">0</div>
+            <div class="s-lbl">Shift Hari Minggu</div>
+          </div>
+        </div>
+        <div class="summary-item">
+          <i class="ti ti-flag" style="color:var(--orange);"></i>
+          <div>
+            <div class="s-num" id="sum-libur" style="color:var(--orange);">0</div>
+            <div class="s-lbl">Masuk Hari Libur Nasional</div>
+          </div>
+        </div>
       </div>
 
       <div class="card">
         <div class="card-title">Absensi Hari Ini</div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Nama</th><th>PIC</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>Status Kerja</th></tr></thead>
-            <tbody id="today-tbody"><tr><td colspan="6"><div class="spinner"></div></td></tr></tbody>
+            <thead>
+              <tr>
+                <th>Nama</th><th>PIC</th><th>Jam Masuk</th><th>Jam Pulang</th>
+                <th>Status</th><th>Jenis Hari</th><th>Status Kerja</th>
+              </tr>
+            </thead>
+            <tbody id="today-tbody"><tr><td colspan="7"><div class="spinner"></div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -317,10 +426,24 @@ tr:hover td { background: var(--bg2); }
           <input type="date" id="filter-tgl" />
           <button class="btn-filter" onclick="loadAbsensiByDate()"><i class="ti ti-search"></i> Cari</button>
         </div>
+        <!-- Legend -->
+        <div class="legend">
+          <span class="legend-item"><span class="legend-dot" style="background:#8E8E93;"></span>Hari Normal (Sen–Sab)</span>
+          <span class="legend-item"><span class="legend-dot" style="background:var(--purple);"></span>Shift Minggu</span>
+          <span class="legend-item"><span class="legend-dot" style="background:var(--orange);"></span>Hari Libur Nasional</span>
+          <span class="legend-item"><span class="legend-dot" style="background:var(--teal);"></span>Lembur</span>
+        </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Nama</th><th>PIC</th><th>Tanggal</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>Status Kerja</th></tr></thead>
-            <tbody id="absensi-tbody"><tr><td colspan="7"><div class="empty"><i class="ti ti-calendar-search"></i><p>Pilih tanggal untuk melihat absensi</p></div></td></tr></tbody>
+            <thead>
+              <tr>
+                <th>Nama</th><th>PIC</th><th>Tanggal</th><th>Jam Masuk</th><th>Jam Pulang</th>
+                <th>Status</th><th>Jenis Hari</th><th>Keterangan</th>
+              </tr>
+            </thead>
+            <tbody id="absensi-tbody">
+              <tr><td colspan="8"><div class="empty"><i class="ti ti-calendar-search"></i><p>Pilih tanggal untuk melihat absensi</p></div></td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -329,7 +452,7 @@ tr:hover td { background: var(--bg2); }
     <!-- IZIN -->
     <div class="page" id="page-izin">
       <div class="page-header">
-        <h1>Pengajuan Izin & Cuti</h1>
+        <h1>Pengajuan Izin &amp; Cuti</h1>
         <p>Setujui atau tolak pengajuan dari karyawan</p>
       </div>
       <div class="card">
@@ -363,11 +486,51 @@ tr:hover td { background: var(--bg2); }
           <select id="rekap-month" class="form-control" style="width:auto;"></select>
           <button class="btn-filter" onclick="loadRekap()"><i class="ti ti-refresh"></i> Tampilkan</button>
           <span class="rekap-info" id="rekap-info">–</span>
+          <button class="btn-dl btn-dl-excel" id="btn-excel" onclick="downloadExcel()" disabled>
+            <i class="ti ti-table-export"></i> Download Excel
+          </button>
+          <button class="btn-dl btn-dl-pdf" id="btn-pdf" onclick="downloadPDF()" disabled>
+            <i class="ti ti-file-type-pdf"></i> Download PDF
+          </button>
         </div>
+
+        <!-- Rekap summary chips -->
+        <div id="rekap-summary" style="display:none;" class="stats-grid stats-grid-4" style="margin-bottom:16px;">
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--success-light);color:var(--success);"><i class="ti ti-calendar-week"></i></div>
+            <div class="stat-val" id="rs-normal" style="color:var(--success);">0</div>
+            <div class="stat-key">Total Hari Kerja Normal</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--purple-light);color:var(--purple);"><i class="ti ti-rotate-clockwise"></i></div>
+            <div class="stat-val" id="rs-minggu" style="color:var(--purple);">0</div>
+            <div class="stat-key">Shift Hari Minggu</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--orange-light);color:var(--orange);"><i class="ti ti-flag"></i></div>
+            <div class="stat-val" id="rs-libur" style="color:var(--orange);">0</div>
+            <div class="stat-key">Masuk Hari Libur Nasional</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:var(--teal-light);color:var(--teal);"><i class="ti ti-clock-bolt"></i></div>
+            <div class="stat-val" id="rs-lembur" style="color:var(--teal);">0</div>
+            <div class="stat-key">Total Lembur (orang-hari)</div>
+          </div>
+        </div>
+
         <div class="table-wrap">
-          <table>
-            <thead><tr><th>Nama</th><th>PIC</th><th>Hadir</th><th>Terlambat</th><th>Absen</th><th>Izin</th><th>Total Masuk</th></tr></thead>
-            <tbody id="rekap-tbody"><tr><td colspan="7"><div class="empty"><i class="ti ti-chart-bar"></i><p>Pilih bulan untuk melihat rekap</p></div></td></tr></tbody>
+          <table id="rekap-table">
+            <thead>
+              <tr>
+                <th>Nama</th><th>PIC</th>
+                <th>Hadir</th><th>Terlambat</th><th>Absen</th><th>Izin</th>
+                <th>Shift Minggu</th><th>Masuk Libnas</th><th>Lembur</th>
+                <th>Total Masuk</th>
+              </tr>
+            </thead>
+            <tbody id="rekap-tbody">
+              <tr><td colspan="10"><div class="empty"><i class="ti ti-chart-bar"></i><p>Pilih bulan untuk melihat rekap</p></div></td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -389,22 +552,142 @@ tr:hover td { background: var(--bg2); }
       </div>
     </div>
 
-  </div>
-</div>
+  </div><!-- end main-content -->
+</div><!-- end dashboard-screen -->
 
 <script>
 // ============================================================
 //  KONFIGURASI
 // ============================================================
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwaAlKvzDWY4V4APjPJwupwYwwWw4j2mwl67Ha7eVPIgKRzIC4Kl62DC7IspOLJap_r/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwq1AOpcnJ8PguXb3hd3ClUZ7osIRtYC2NVQA6gKNH-JG7JjqbCT6UBcaoiOnEMxJbP/exec
+';
 // ============================================================
+
+// ---- Hari Libur Nasional Indonesia 2025–2026 ----
+const LIBUR_NASIONAL = new Set([
+  // 2025
+  '2025-01-01','2025-01-27','2025-01-28','2025-01-29',
+  '2025-02-12','2025-03-29','2025-03-30','2025-03-31',
+  '2025-04-01','2025-04-18','2025-04-20',
+  '2025-05-01','2025-05-12','2025-05-13','2025-05-29',
+  '2025-06-01','2025-06-06','2025-06-07','2025-06-09',
+  '2025-08-17','2025-09-05',
+  '2025-10-02','2025-12-25','2025-12-26',
+  // 2026
+  '2026-01-01','2026-01-16','2026-01-17',
+  '2026-02-17','2026-03-20','2026-03-21','2026-03-22',
+  '2026-03-23','2026-04-02','2026-04-03',
+  '2026-05-01','2026-05-14','2026-06-01',
+  '2026-08-17','2026-12-25',
+]);
+
+// Jam lembur threshold (menit kerja) — bisa disesuaikan
+const LEMBUR_THRESHOLD_MENIT = 9 * 60; // lebih dari 9 jam = lembur
 
 let adminUser  = null;
 let adminToken = null;
+let rekapData  = [];   // untuk download
 
-// ---- INIT ----
+// ---- HELPERS ----
+const initials = str => (str||'?').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+
+const todayStr = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2);
+};
+
+// Apakah tanggal adalah libur nasional?
+const isLiburNasional = (dateStr) => LIBUR_NASIONAL.has(dateStr);
+
+// Apakah hari Minggu?
+const isMinggu = (dateStr) => new Date(dateStr + 'T00:00:00').getDay() === 0;
+
+// Tentukan jenis hari
+function jenisHari(dateStr) {
+  if (isLiburNasional(dateStr)) return 'libur';
+  if (isMinggu(dateStr))        return 'minggu';
+  return 'normal';
+}
+
+// Nama hari libur (singkat)
+function namaLibur(dateStr) {
+  const map = {
+    // 2025
+    '2025-01-01':'Tahun Baru','2025-01-27':'Isra Miraj','2025-01-28':'Imlek (cuti)','2025-01-29':'Imlek',
+    '2025-02-12':'Imlek 2576','2025-03-29':'Idul Fitri','2025-03-30':'Idul Fitri','2025-03-31':'Idul Fitri',
+    '2025-04-01':'Idul Fitri','2025-04-18':'Jumat Agung','2025-04-20':'Paskah',
+    '2025-05-01':'Hari Buruh','2025-05-12':'Waisak','2025-05-13':'Waisak (cuti)','2025-05-29':'Kenaikan Isa',
+    '2025-06-01':'Pancasila','2025-06-06':'Idul Adha','2025-06-07':'Idul Adha','2025-06-09':'Idul Adha (cuti)',
+    '2025-08-17':'HUT RI','2025-09-05':'Tahun Baru Islam',
+    '2025-10-02':'Maulid Nabi','2025-12-25':'Natal','2025-12-26':'Natal (cuti)',
+    // 2026
+    '2026-01-01':'Tahun Baru','2026-01-16':'Isra Miraj','2026-01-17':'Isra Miraj (cuti)',
+    '2026-02-17':'Imlek','2026-03-20':'Idul Fitri','2026-03-21':'Idul Fitri','2026-03-22':'Idul Fitri',
+    '2026-03-23':'Idul Fitri','2026-04-02':'Jumat Agung','2026-04-03':'Paskah',
+    '2026-05-01':'Hari Buruh','2026-05-14':'Waisak','2026-06-01':'Pancasila',
+    '2026-08-17':'HUT RI','2026-12-25':'Natal',
+  };
+  return map[dateStr] || 'Libur Nasional';
+}
+
+// Hitung durasi kerja dalam menit dari jam masuk & pulang
+function durasiMenit(masuk, pulang) {
+  if (!masuk || !pulang) return 0;
+  const toMin = t => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + (m || 0);
+  };
+  return Math.max(0, toMin(pulang) - toMin(masuk));
+}
+
+let toastT;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function badgeHtml(status) {
+  const map = {
+    hadir:'badge-hadir', terlambat:'badge-terlambat', absen:'badge-absen',
+    izin:'badge-izin', pending:'badge-pending', disetujui:'badge-disetujui',
+    ditolak:'badge-ditolak', admin:'badge-admin', karyawan:'badge-izin',
+    normal:'badge-normal', minggu:'badge-minggu', libur:'badge-libur',
+    lembur:'badge-lembur',
+  };
+  const label = {
+    hadir:'Hadir', terlambat:'Terlambat', absen:'Absen', izin:'Izin',
+    pending:'Menunggu', disetujui:'Disetujui', ditolak:'Ditolak',
+    admin:'Admin', karyawan:'Karyawan',
+    normal:'Hari Normal', minggu:'Shift Minggu', libur:'Libur Nasional',
+    lembur:'Lembur',
+  };
+  return `<span class="badge ${map[status]||'badge-izin'}">${label[status]||status}</span>`;
+}
+
+function jenisHariBadge(dateStr) {
+  const j = jenisHari(dateStr);
+  if (j === 'libur') return `<span class="badge badge-libur" title="${namaLibur(dateStr)}">🚩 Libur – ${namaLibur(dateStr)}</span>`;
+  if (j === 'minggu') return `<span class="badge badge-minggu">🔄 Shift Minggu</span>`;
+  return `<span class="badge badge-normal">📅 Hari Normal</span>`;
+}
+
+// ---- PASSWORD TOGGLE ----
+function togglePass() {
+  const inp = document.getElementById('l-pass');
+  const ico = document.getElementById('eye-icon');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    ico.className = 'ti ti-eye-off';
+  } else {
+    inp.type = 'password';
+    ico.className = 'ti ti-eye';
+  }
+}
+
+// ---- INIT (persistent session) ----
 (function init() {
-  // Selalu sembunyikan login dulu, baru cek sesi
   const loginEl     = document.getElementById('login-screen');
   const dashboardEl = document.getElementById('dashboard-screen');
   loginEl.style.display     = 'none';
@@ -417,6 +700,14 @@ let adminToken = null;
       if (sess && sess.user && sess.user.role === 'admin' && sess.token) {
         adminToken = sess.token;
         adminUser  = sess.user;
+        // Validasi token ke server di background; jika gagal, logout silent
+        api('adminPing').then(r => {
+          if (!r.ok) {
+            localStorage.removeItem('admin_session');
+            adminToken = null; adminUser = null;
+            showLogin();
+          }
+        }).catch(() => {/* tetap tampilkan dashboard, user bisa coba ulang */});
         showDashboard();
         return;
       }
@@ -424,21 +715,8 @@ let adminToken = null;
   } catch(e) {
     console.error('Session parse error:', e);
   }
-
-  // Tidak ada sesi valid → tampilkan login
   showLogin();
 })();
-
-function showLogin() {
-  document.getElementById('login-screen').style.display  = 'flex';
-  document.getElementById('dashboard-screen').style.display = 'none';
-}
-
-// Tanggal hari ini format YYYY-MM-DD (waktu lokal)
-const todayStr = () => {
-  const d = new Date();
-  return d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2);
-};
 
 // ---- API ----
 async function api(action, data = {}) {
@@ -453,30 +731,6 @@ async function api(action, data = {}) {
   } catch(e) {
     return { ok: false, error: 'Koneksi gagal: ' + e.message };
   }
-}
-
-// ---- HELPERS ----
-const initials = str => (str||'?').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
-let toastT;
-function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  clearTimeout(toastT);
-  toastT = setTimeout(() => el.classList.remove('show'), 3000);
-}
-
-function badgeHtml(status) {
-  const map = {
-    hadir:'badge-hadir', terlambat:'badge-terlambat', absen:'badge-absen',
-    izin:'badge-izin', pending:'badge-pending', disetujui:'badge-disetujui',
-    ditolak:'badge-ditolak', admin:'badge-admin', karyawan:'badge-izin',
-  };
-  const label = {
-    hadir:'Hadir', terlambat:'Terlambat', absen:'Absen', izin:'Izin',
-    pending:'Menunggu', disetujui:'Disetujui', ditolak:'Ditolak',
-    admin:'Admin', karyawan:'Karyawan',
-  };
-  return `<span class="badge ${map[status]||'badge-izin'}">${label[status]||status}</span>`;
 }
 
 // ---- LOGIN ----
@@ -512,6 +766,11 @@ async function doLogin() {
   }
 }
 
+function showLogin() {
+  document.getElementById('login-screen').style.display  = 'flex';
+  document.getElementById('dashboard-screen').style.display = 'none';
+}
+
 function doLogout() {
   localStorage.removeItem('admin_session');
   adminToken = null; adminUser = null;
@@ -530,9 +789,25 @@ function showDashboard() {
   const days   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
   const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const now    = new Date();
-  document.getElementById('greet-date').textContent = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+  document.getElementById('greet-date').textContent =
+    days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
 
-  document.getElementById('filter-tgl').value = todayStr();
+  // Jenis hari ini
+  const ts = todayStr();
+  const jh = jenisHari(ts);
+  const jhEl = document.getElementById('s-hari-jenis');
+  if (jh === 'libur') {
+    jhEl.textContent = '🚩 ' + namaLibur(ts);
+    jhEl.style.color = 'var(--orange)';
+  } else if (jh === 'minggu') {
+    jhEl.textContent = '🔄 Shift Minggu';
+    jhEl.style.color = 'var(--purple)';
+  } else {
+    jhEl.textContent = '📅 Hari Kerja Normal';
+    jhEl.style.color = 'var(--success)';
+  }
+
+  document.getElementById('filter-tgl').value = ts;
   fillMonthDropdown();
   loadBeranda();
 }
@@ -558,14 +833,13 @@ function switchPage(name) {
   document.querySelectorAll('.nav-item').forEach(b => {
     const t = b.textContent.toLowerCase();
     if (
-      (name === 'beranda'   && t.includes('beranda'))  ||
-      (name === 'absensi'   && t.includes('absensi'))  ||
-      (name === 'izin'      && t.includes('izin'))     ||
-      (name === 'rekap'     && t.includes('rekap'))    ||
-      (name === 'karyawan'  && t.includes('karyawan'))
+      (name === 'beranda'  && t.includes('beranda'))  ||
+      (name === 'absensi'  && t.includes('absensi'))  ||
+      (name === 'izin'     && t.includes('izin'))     ||
+      (name === 'rekap'    && t.includes('rekap'))    ||
+      (name === 'karyawan' && t.includes('karyawan'))
     ) b.classList.add('active');
   });
-
   if (name === 'izin')     loadIzin();
   if (name === 'rekap')    loadRekap();
   if (name === 'karyawan') loadKaryawan();
@@ -573,41 +847,71 @@ function switchPage(name) {
 
 // ---- BERANDA ----
 async function loadBeranda() {
-  const res     = await api('adminGetToday', { tanggal: todayStr() });
-  const tbody   = document.getElementById('today-tbody');
-  const izinRes = await api('adminGetPendingIzin');
+  const ts    = todayStr();
+  const tbody = document.getElementById('today-tbody');
+  const [res, izinRes] = await Promise.all([
+    api('adminGetToday', { tanggal: ts }),
+    api('adminGetPendingIzin')
+  ]);
+
   document.getElementById('s-pending').textContent = izinRes.ok ? izinRes.data.length : '–';
 
   if (!res.ok) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><i class="ti ti-alert-circle"></i><p>${res.error}</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-alert-circle"></i><p>${res.error}</p></div></td></tr>`;
     return;
   }
 
-  const data = res.data || [];
-  let hadir = 0, terlambat = 0;
+  const data   = res.data || [];
+  let hadir = 0, terlambat = 0, lembur = 0, normal = 0, shiftMinggu = 0, masukLibur = 0;
+  const jh = jenisHari(ts);
+
   data.forEach(d => {
-    if (d.status === 'hadir') hadir++;
+    if (d.status === 'hadir')     hadir++;
     if (d.status === 'terlambat') { hadir++; terlambat++; }
+    const durasi = durasiMenit(d.masuk, d.pulang);
+    if (durasi > LEMBUR_THRESHOLD_MENIT) lembur++;
+    if (jh === 'normal') normal++;
+    else if (jh === 'minggu') shiftMinggu++;
+    else if (jh === 'libur') masukLibur++;
   });
 
   document.getElementById('s-hadir').textContent     = hadir;
   document.getElementById('s-terlambat').textContent = terlambat;
+  document.getElementById('s-lembur').textContent    = lembur;
   document.getElementById('s-belum').textContent     = '–';
 
+  // Summary bar
+  if (data.length > 0) {
+    document.getElementById('summary-bar').style.display = 'grid';
+    document.getElementById('sum-normal').textContent  = normal;
+    document.getElementById('sum-minggu').textContent  = shiftMinggu;
+    document.getElementById('sum-libur').textContent   = masukLibur;
+  }
+
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><i class="ti ti-users"></i><p>Belum ada yang absen hari ini</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-users"></i><p>Belum ada yang absen hari ini</p></div></td></tr>`;
     return;
   }
 
-  tbody.innerHTML = data.map(d => `
+  tbody.innerHTML = data.map(d => {
+    const durasi  = durasiMenit(d.masuk, d.pulang);
+    const isLembur = durasi > LEMBUR_THRESHOLD_MENIT;
+    return `
     <tr>
       <td><div style="display:flex;align-items:center;gap:8px;"><div class="ava">${initials(d.name)}</div>${d.name||'–'}</div></td>
       <td>${d.department||'–'}</td>
       <td>${d.masuk||'–'}</td>
       <td>${d.pulang||'–'}</td>
       <td>${badgeHtml(d.status)}</td>
-      <td><span class="badge ${d.pulang ? 'badge-tidak' : 'badge-bekerja'}">${d.pulang ? 'Tidak Bekerja' : 'Sedang Bekerja'}</span></td>
-    </tr>`).join('');
+      <td>${jenisHariBadge(ts)}</td>
+      <td>
+        ${d.pulang
+          ? `<span class="badge badge-tidak">Selesai${isLembur ? ' · <span class=\'badge badge-lembur\'>Lembur</span>':''}</span>`
+          : `<span class="badge badge-bekerja">Sedang Bekerja</span>`}
+        ${isLembur && d.pulang ? badgeHtml('lembur') : ''}
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 // ---- ABSENSI FILTER ----
@@ -616,21 +920,29 @@ async function loadAbsensiByDate() {
   const tbody = document.getElementById('absensi-tbody');
   if (!tgl) { toast('Pilih tanggal dulu!'); return; }
 
-  tbody.innerHTML = `<tr><td colspan="7"><div class="spinner"></div></td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="8"><div class="spinner"></div></td></tr>`;
   const res = await api('adminGetToday', { tanggal: tgl });
 
   if (!res.ok) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-alert-circle"></i><p>${res.error}</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><i class="ti ti-alert-circle"></i><p>${res.error}</p></div></td></tr>`;
     return;
   }
 
   const data = res.data || [];
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-calendar-off"></i><p>Tidak ada data absensi pada tanggal ini</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><i class="ti ti-calendar-off"></i><p>Tidak ada data absensi pada tanggal ini</p></div></td></tr>`;
     return;
   }
 
-  tbody.innerHTML = data.map(d => `
+  tbody.innerHTML = data.map(d => {
+    const durasi   = durasiMenit(d.masuk, d.pulang);
+    const isLembur = durasi > LEMBUR_THRESHOLD_MENIT;
+    const jh       = jenisHari(tgl);
+    let ket = [];
+    if (jh === 'libur')  ket.push('Libur Nasional: ' + namaLibur(tgl));
+    if (jh === 'minggu') ket.push('Shift Rolling Minggu');
+    if (isLembur)        ket.push(`Lembur ±${Math.round(durasi/60-8)}j`);
+    return `
     <tr>
       <td><div style="display:flex;align-items:center;gap:8px;"><div class="ava">${initials(d.name)}</div>${d.name||'–'}</div></td>
       <td>${d.department||'–'}</td>
@@ -638,8 +950,10 @@ async function loadAbsensiByDate() {
       <td>${d.masuk||'–'}</td>
       <td>${d.pulang||'–'}</td>
       <td>${badgeHtml(d.status)}</td>
-      <td><span class="badge ${d.pulang ? 'badge-tidak' : 'badge-bekerja'}">${d.pulang ? 'Tidak Bekerja' : 'Sedang Bekerja'}</span></td>
-    </tr>`).join('');
+      <td>${jenisHariBadge(tgl)}</td>
+      <td style="font-size:12px;color:var(--t2);">${ket.length ? ket.join(' · ') : '–'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ---- IZIN ----
@@ -704,22 +1018,49 @@ async function updateIzin(id, status, btn) {
 async function loadRekap() {
   const month = document.getElementById('rekap-month').value;
   const tbody = document.getElementById('rekap-tbody');
-  tbody.innerHTML = `<tr><td colspan="7"><div class="spinner"></div></td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="10"><div class="spinner"></div></td></tr>`;
+  document.getElementById('btn-excel').disabled = true;
+  document.getElementById('btn-pdf').disabled   = true;
+  document.getElementById('rekap-summary').style.display = 'none';
+  rekapData = [];
 
   const res = await api('adminGetRekap', { month });
   if (!res.ok) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-alert-circle"></i><p>${res.error}</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty"><i class="ti ti-alert-circle"></i><p>${res.error}</p></div></td></tr>`;
     return;
   }
 
-  document.getElementById('rekap-info').textContent = `Total hari kerja: ${res.hariKerja} hari`;
+  document.getElementById('rekap-info').textContent = `Total hari kerja: ${res.hariKerja || '?'} hari`;
+
   const data = res.data || [];
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><i class="ti ti-chart-bar"></i><p>Belum ada data untuk bulan ini</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10"><div class="empty"><i class="ti ti-chart-bar"></i><p>Belum ada data untuk bulan ini</p></div></td></tr>`;
     return;
   }
 
-  tbody.innerHTML = data.map(d => `
+  // Hitung lembur/shift dari detail attendance jika tersedia, atau estimasi dari rekap
+  // Fallback: gunakan field dari GAS jika ada, atau set 0
+  let totalNormal = 0, totalMinggu = 0, totalLibur = 0, totalLembur = 0;
+
+  // Iterasi semua hari di bulan yang dipilih untuk menghitung jenis hari
+  const [yr, mo] = month.split('-').map(Number);
+  const daysInMonth = new Date(yr, mo, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const jh = jenisHari(ds);
+    if (jh === 'normal')  totalNormal++;
+    else if (jh === 'minggu') totalMinggu++;
+    else if (jh === 'libur')  totalLibur++;
+  }
+
+  rekapData = data;
+
+  tbody.innerHTML = data.map(d => {
+    const shiftMinggu = d.shiftMinggu  || 0;
+    const masukLibur  = d.masukLiburnas || 0;
+    const lembur      = d.lembur        || 0;
+    totalLembur += lembur;
+    return `
     <tr>
       <td><div style="display:flex;align-items:center;gap:8px;"><div class="ava">${initials(d.nama)}</div>${d.nama}</div></td>
       <td>${d.pic||'–'}</td>
@@ -727,8 +1068,95 @@ async function loadRekap() {
       <td><span style="color:${d.terlambat>0?'var(--warn)':'var(--t3)'};">${d.terlambat}</span></td>
       <td><span style="color:${d.absen>0?'var(--danger)':'var(--t3)'};">${d.absen}</span></td>
       <td><span style="color:var(--brand);">${d.izin}</span></td>
+      <td><span style="color:${shiftMinggu>0?'var(--purple)':'var(--t3)'};">${shiftMinggu}</span></td>
+      <td><span style="color:${masukLibur>0?'var(--orange)':'var(--t3)'};">${masukLibur}</span></td>
+      <td><span style="color:${lembur>0?'var(--teal)':'var(--t3)'};">${lembur}</span></td>
       <td><strong>${d.hadir}</strong></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+
+  // Rekap summary chips
+  document.getElementById('rekap-summary').style.display = 'grid';
+  document.getElementById('rs-normal').textContent = totalNormal;
+  document.getElementById('rs-minggu').textContent = totalMinggu;
+  document.getElementById('rs-libur').textContent  = totalLibur;
+  document.getElementById('rs-lembur').textContent = totalLembur;
+
+  document.getElementById('btn-excel').disabled = false;
+  document.getElementById('btn-pdf').disabled   = false;
+}
+
+// ---- DOWNLOAD EXCEL ----
+function downloadExcel() {
+  if (!rekapData.length) { toast('Tidak ada data untuk diunduh.'); return; }
+  const month = document.getElementById('rekap-month').value;
+  const sel   = document.getElementById('rekap-month');
+  const label = sel.options[sel.selectedIndex]?.text || month;
+
+  const rows = [
+    ['No','Nama','PIC','Hadir','Terlambat','Absen','Izin','Shift Minggu','Masuk Libnas','Lembur','Total Masuk'],
+    ...rekapData.map((d, i) => [
+      i+1, d.nama, d.pic||'–',
+      d.hadir, d.terlambat, d.absen, d.izin,
+      d.shiftMinggu||0, d.masukLiburnas||0, d.lembur||0, d.hadir
+    ])
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // Column widths
+  ws['!cols'] = [6,24,18,8,10,8,8,14,14,8,12].map(w=>({wch:w}));
+  // Bold header
+  for (let c = 0; c < rows[0].length; c++) {
+    const cell = XLSX.utils.encode_cell({r:0, c});
+    if (ws[cell]) ws[cell].s = { font: { bold: true } };
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Rekap ' + label);
+  XLSX.writeFile(wb, `Rekap_Absensi_JW_${month}.xlsx`);
+  toast('✅ File Excel berhasil diunduh');
+}
+
+// ---- DOWNLOAD PDF ----
+function downloadPDF() {
+  if (!rekapData.length) { toast('Tidak ada data untuk diunduh.'); return; }
+  const month = document.getElementById('rekap-month').value;
+  const sel   = document.getElementById('rekap-month');
+  const label = sel.options[sel.selectedIndex]?.text || month;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+  doc.setFontSize(14);
+  doc.setFont('helvetica','bold');
+  doc.text('Rekap Absensi – JW Manajemen', 14, 16);
+  doc.setFontSize(10);
+  doc.setFont('helvetica','normal');
+  doc.text(`Periode: ${label}`, 14, 23);
+  doc.text(`Dicetak: ${new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})}`, 14, 29);
+
+  const head = [['No','Nama','PIC','Hadir','Terlambat','Absen','Izin','Shift\nMinggu','Libnas','Lembur','Total']];
+  const body = rekapData.map((d, i) => [
+    i+1, d.nama, d.pic||'–',
+    d.hadir, d.terlambat, d.absen, d.izin,
+    d.shiftMinggu||0, d.masukLiburnas||0, d.lembur||0, d.hadir
+  ]);
+
+  doc.autoTable({
+    head, body,
+    startY: 34,
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [24, 95, 165], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [242, 242, 247] },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 42 },
+      2: { cellWidth: 28 },
+    }
+  });
+
+  doc.save(`Rekap_Absensi_JW_${month}.pdf`);
+  toast('✅ File PDF berhasil diunduh');
 }
 
 // ---- KARYAWAN ----
