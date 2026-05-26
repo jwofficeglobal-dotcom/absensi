@@ -5,9 +5,228 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Dashboard — Absensi JW Manajemen</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+// ---- MODAL DETAIL REKAP ----
+const HARI_NAMA = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+
+function closeModal() {
+  document.getElementById('modal-detail').classList.remove('open');
+}
+
+async function showDetail(userId, nama, month) {
+  document.getElementById('modal-title').textContent = 'Detail Absensi — ' + nama + ' (' + month + ')';
+  document.getElementById('modal-stat').innerHTML = '';
+  document.getElementById('modal-tbody').innerHTML = '<tr><td colspan="8"><div class="spinner"></div></td></tr>';
+  document.getElementById('modal-detail').classList.add('open');
+
+  const res = await api('adminGetDetailRekap', { userId, month });
+
+  if (!res.ok) {
+    document.getElementById('modal-tbody').innerHTML =
+      '<tr><td colspan="8"><div class="empty"><i class="ti ti-alert-circle"></i><p>' + res.error + '</p></div></td></tr>';
+    return;
+  }
+
+  const rows = res.data || [];
+
+  // Hitung summary
+  let hadir=0,terlambat=0,absen=0,shiftMinggu=0,masukLibur=0,lembur=0;
+  rows.forEach(r => {
+    if(r.status==='hadir'||r.status==='terlambat') hadir++;
+    if(r.status==='terlambat') terlambat++;
+    if(r.status==='absen') absen++;
+    if(r.jenisHari==='minggu') shiftMinggu++;
+    if(r.jenisHari==='libur') masukLibur++;
+    if(r.lembur) lembur++;
+  });
+
+  document.getElementById('modal-stat').innerHTML = `
+    <span class="modal-chip" style="background:var(--success-light);color:#085041;">✅ Hadir: ${hadir}</span>
+    <span class="modal-chip" style="background:var(--warn-light);color:#633806;">⏰ Terlambat: ${terlambat}</span>
+    <span class="modal-chip" style="background:var(--danger-light);color:#791F1F;">❌ Absen: ${absen}</span>
+    <span class="modal-chip" style="background:var(--purple-light);color:var(--purple);">🔄 Shift Minggu: ${shiftMinggu}</span>
+    <span class="modal-chip" style="background:var(--orange-light);color:var(--orange);">🚩 Libnas: ${masukLibur}</span>
+    <span class="modal-chip" style="background:var(--teal-light);color:var(--teal);">⚡ Lembur: ${lembur}</span>
+    <span class="modal-chip" style="background:var(--bg3);color:var(--t2);">📋 Total baris: ${rows.length}</span>
+  `;
+
+  if (!rows.length) {
+    document.getElementById('modal-tbody').innerHTML =
+      '<tr><td colspan="8"><div class="empty"><i class="ti ti-calendar-off"></i><p>Tidak ada data absensi bulan ini</p></div></td></tr>';
+    return;
+  }
+
+  document.getElementById('modal-tbody').innerHTML = rows.map((r, i) => {
+    const d      = new Date(r.tanggal + 'T12:00:00');
+    const hariNm = HARI_NAMA[d.getDay()];
+    const durMn  = r.durasiMenit || 0;
+    const durStr = durMn > 0 ? Math.floor(durMn/60) + 'j ' + (durMn%60) + 'm' : '–';
+    let jhBadge  = '<span class="badge badge-normal">Normal</span>';
+    if (r.jenisHari==='minggu') jhBadge = '<span class="badge badge-minggu">🔄 Minggu</span>';
+    if (r.jenisHari==='libur')  jhBadge = '<span class="badge badge-libur" title="'+r.namaLibur+'">🚩 Libnas</span>';
+    const lemburBadge = r.lembur ? '<span class="badge badge-lembur" style="margin-left:4px;">⚡</span>' : '';
+    return '<tr>' +
+      '<td style="color:var(--t3);">' + (i+1) + '</td>' +
+      '<td><strong>' + r.tanggal + '</strong></td>' +
+      '<td>' + hariNm + '</td>' +
+      '<td>' + jhBadge + '</td>' +
+      '<td>' + (r.masuk||'–') + '</td>' +
+      '<td>' + (r.pulang||'–') + '</td>' +
+      '<td>' + badgeHtml(r.status) + lemburBadge + '</td>' +
+      '<td style="font-size:12px;color:var(--t3);">' + durStr + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
+// ---- MODAL DETAIL REKAP ----
+const HARI_NAMA = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+
+function closeModal() {
+  document.getElementById('modal-detail').classList.remove('open');
+}
+
+async function showDetail(userId, nama, month) {
+  document.getElementById('modal-title').textContent = 'Detail Absensi — ' + nama + ' (' + month + ')';
+  document.getElementById('modal-stat').innerHTML = '';
+  document.getElementById('modal-tbody').innerHTML = '<tr><td colspan="8"><div class="spinner"></div></td></tr>';
+  document.getElementById('modal-detail').classList.add('open');
+
+  const res = await api('adminGetDetailRekap', { userId, month });
+
+  if (!res.ok) {
+    document.getElementById('modal-tbody').innerHTML =
+      '<tr><td colspan="8"><div class="empty"><i class="ti ti-alert-circle"></i><p>' + res.error + '</p></div></td></tr>';
+    return;
+  }
+
+  const rows = res.data || [];
+
+  // Hitung summary
+  let hadir=0,terlambat=0,absen=0,shiftMinggu=0,masukLibur=0,lembur=0;
+  rows.forEach(r => {
+    if(r.status==='hadir'||r.status==='terlambat') hadir++;
+    if(r.status==='terlambat') terlambat++;
+    if(r.status==='absen') absen++;
+    if(r.jenisHari==='minggu') shiftMinggu++;
+    if(r.jenisHari==='libur') masukLibur++;
+    if(r.lembur) lembur++;
+  });
+
+  document.getElementById('modal-stat').innerHTML = `
+    <span class="modal-chip" style="background:var(--success-light);color:#085041;">✅ Hadir: ${hadir}</span>
+    <span class="modal-chip" style="background:var(--warn-light);color:#633806;">⏰ Terlambat: ${terlambat}</span>
+    <span class="modal-chip" style="background:var(--danger-light);color:#791F1F;">❌ Absen: ${absen}</span>
+    <span class="modal-chip" style="background:var(--purple-light);color:var(--purple);">🔄 Shift Minggu: ${shiftMinggu}</span>
+    <span class="modal-chip" style="background:var(--orange-light);color:var(--orange);">🚩 Libnas: ${masukLibur}</span>
+    <span class="modal-chip" style="background:var(--teal-light);color:var(--teal);">⚡ Lembur: ${lembur}</span>
+    <span class="modal-chip" style="background:var(--bg3);color:var(--t2);">📋 Total baris: ${rows.length}</span>
+  `;
+
+  if (!rows.length) {
+    document.getElementById('modal-tbody').innerHTML =
+      '<tr><td colspan="8"><div class="empty"><i class="ti ti-calendar-off"></i><p>Tidak ada data absensi bulan ini</p></div></td></tr>';
+    return;
+  }
+
+  document.getElementById('modal-tbody').innerHTML = rows.map((r, i) => {
+    const d      = new Date(r.tanggal + 'T12:00:00');
+    const hariNm = HARI_NAMA[d.getDay()];
+    const durMn  = r.durasiMenit || 0;
+    const durStr = durMn > 0 ? Math.floor(durMn/60) + 'j ' + (durMn%60) + 'm' : '–';
+    let jhBadge  = '<span class="badge badge-normal">Normal</span>';
+    if (r.jenisHari==='minggu') jhBadge = '<span class="badge badge-minggu">🔄 Minggu</span>';
+    if (r.jenisHari==='libur')  jhBadge = '<span class="badge badge-libur" title="'+r.namaLibur+'">🚩 Libnas</span>';
+    const lemburBadge = r.lembur ? '<span class="badge badge-lembur" style="margin-left:4px;">⚡</span>' : '';
+    return '<tr>' +
+      '<td style="color:var(--t3);">' + (i+1) + '</td>' +
+      '<td><strong>' + r.tanggal + '</strong></td>' +
+      '<td>' + hariNm + '</td>' +
+      '<td>' + jhBadge + '</td>' +
+      '<td>' + (r.masuk||'–') + '</td>' +
+      '<td>' + (r.pulang||'–') + '</td>' +
+      '<td>' + badgeHtml(r.status) + lemburBadge + '</td>' +
+      '<td style="font-size:12px;color:var(--t3);">' + durStr + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js">
+// ---- MODAL DETAIL REKAP ----
+const HARI_NAMA = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+
+function closeModal() {
+  document.getElementById('modal-detail').classList.remove('open');
+}
+
+async function showDetail(userId, nama, month) {
+  document.getElementById('modal-title').textContent = 'Detail Absensi — ' + nama + ' (' + month + ')';
+  document.getElementById('modal-stat').innerHTML = '';
+  document.getElementById('modal-tbody').innerHTML = '<tr><td colspan="8"><div class="spinner"></div></td></tr>';
+  document.getElementById('modal-detail').classList.add('open');
+
+  const res = await api('adminGetDetailRekap', { userId, month });
+
+  if (!res.ok) {
+    document.getElementById('modal-tbody').innerHTML =
+      '<tr><td colspan="8"><div class="empty"><i class="ti ti-alert-circle"></i><p>' + res.error + '</p></div></td></tr>';
+    return;
+  }
+
+  const rows = res.data || [];
+
+  // Hitung summary
+  let hadir=0,terlambat=0,absen=0,shiftMinggu=0,masukLibur=0,lembur=0;
+  rows.forEach(r => {
+    if(r.status==='hadir'||r.status==='terlambat') hadir++;
+    if(r.status==='terlambat') terlambat++;
+    if(r.status==='absen') absen++;
+    if(r.jenisHari==='minggu') shiftMinggu++;
+    if(r.jenisHari==='libur') masukLibur++;
+    if(r.lembur) lembur++;
+  });
+
+  document.getElementById('modal-stat').innerHTML = `
+    <span class="modal-chip" style="background:var(--success-light);color:#085041;">✅ Hadir: ${hadir}</span>
+    <span class="modal-chip" style="background:var(--warn-light);color:#633806;">⏰ Terlambat: ${terlambat}</span>
+    <span class="modal-chip" style="background:var(--danger-light);color:#791F1F;">❌ Absen: ${absen}</span>
+    <span class="modal-chip" style="background:var(--purple-light);color:var(--purple);">🔄 Shift Minggu: ${shiftMinggu}</span>
+    <span class="modal-chip" style="background:var(--orange-light);color:var(--orange);">🚩 Libnas: ${masukLibur}</span>
+    <span class="modal-chip" style="background:var(--teal-light);color:var(--teal);">⚡ Lembur: ${lembur}</span>
+    <span class="modal-chip" style="background:var(--bg3);color:var(--t2);">📋 Total baris: ${rows.length}</span>
+  `;
+
+  if (!rows.length) {
+    document.getElementById('modal-tbody').innerHTML =
+      '<tr><td colspan="8"><div class="empty"><i class="ti ti-calendar-off"></i><p>Tidak ada data absensi bulan ini</p></div></td></tr>';
+    return;
+  }
+
+  document.getElementById('modal-tbody').innerHTML = rows.map((r, i) => {
+    const d      = new Date(r.tanggal + 'T12:00:00');
+    const hariNm = HARI_NAMA[d.getDay()];
+    const durMn  = r.durasiMenit || 0;
+    const durStr = durMn > 0 ? Math.floor(durMn/60) + 'j ' + (durMn%60) + 'm' : '–';
+    let jhBadge  = '<span class="badge badge-normal">Normal</span>';
+    if (r.jenisHari==='minggu') jhBadge = '<span class="badge badge-minggu">🔄 Minggu</span>';
+    if (r.jenisHari==='libur')  jhBadge = '<span class="badge badge-libur" title="'+r.namaLibur+'">🚩 Libnas</span>';
+    const lemburBadge = r.lembur ? '<span class="badge badge-lembur" style="margin-left:4px;">⚡</span>' : '';
+    return '<tr>' +
+      '<td style="color:var(--t3);">' + (i+1) + '</td>' +
+      '<td><strong>' + r.tanggal + '</strong></td>' +
+      '<td>' + hariNm + '</td>' +
+      '<td>' + jhBadge + '</td>' +
+      '<td>' + (r.masuk||'–') + '</td>' +
+      '<td>' + (r.pulang||'–') + '</td>' +
+      '<td>' + badgeHtml(r.status) + lemburBadge + '</td>' +
+      '<td style="font-size:12px;color:var(--t3);">' + durStr + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -328,7 +547,7 @@ tr:hover td{background:var(--bg2);}
 // ============================================================
 //  GANTI URL INI dengan URL GAS kamu
 // ============================================================
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwgwA0lqWOSYOPtz6kbVRmIfTEo0VDHFVTWd6JK19DIg3sHaMzZZK6wFJb57Bim9jRX/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycby4rGhXl5g8CfZ12z0ekzvsZqJCYmLQGfJWxmg40-YbwHVyIhmHFohk009a7eVz49KG/exec';
 // ============================================================
 
 const LIBUR_NASIONAL = new Set(['2025-01-01','2025-01-27','2025-01-28','2025-01-29','2025-02-12','2025-03-29','2025-03-30','2025-03-31','2025-04-01','2025-04-18','2025-04-20','2025-05-01','2025-05-12','2025-05-13','2025-05-29','2025-06-01','2025-06-06','2025-06-07','2025-06-09','2025-08-17','2025-09-05','2025-10-02','2025-12-25','2025-12-26','2026-01-01','2026-01-16','2026-01-17','2026-02-17','2026-03-20','2026-03-21','2026-03-22','2026-03-23','2026-04-02','2026-04-03','2026-05-01','2026-05-14','2026-06-01','2026-08-17','2026-12-25']);
@@ -624,6 +843,97 @@ async function konfirmasiHapus(){
   else toast('❌ Gagal: '+res.error);
 }
 document.getElementById('modal-hapus').addEventListener('click',function(e){if(e.target===this)tutupModal();});
+
+// ---- MODAL DETAIL REKAP ----
+const HARI_NAMA = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+
+function closeModal() {
+  document.getElementById('modal-detail').classList.remove('open');
+}
+
+async function showDetail(userId, nama, month) {
+  document.getElementById('modal-title').textContent = 'Detail Absensi — ' + nama + ' (' + month + ')';
+  document.getElementById('modal-stat').innerHTML = '';
+  document.getElementById('modal-tbody').innerHTML = '<tr><td colspan="8"><div class="spinner"></div></td></tr>';
+  document.getElementById('modal-detail').classList.add('open');
+
+  const res = await api('adminGetDetailRekap', { userId, month });
+
+  if (!res.ok) {
+    document.getElementById('modal-tbody').innerHTML =
+      '<tr><td colspan="8"><div class="empty"><i class="ti ti-alert-circle"></i><p>' + res.error + '</p></div></td></tr>';
+    return;
+  }
+
+  const rows = res.data || [];
+
+  // Hitung summary
+  let hadir=0,terlambat=0,absen=0,shiftMinggu=0,masukLibur=0,lembur=0;
+  rows.forEach(r => {
+    if(r.status==='hadir'||r.status==='terlambat') hadir++;
+    if(r.status==='terlambat') terlambat++;
+    if(r.status==='absen') absen++;
+    if(r.jenisHari==='minggu') shiftMinggu++;
+    if(r.jenisHari==='libur') masukLibur++;
+    if(r.lembur) lembur++;
+  });
+
+  document.getElementById('modal-stat').innerHTML = `
+    <span class="modal-chip" style="background:var(--success-light);color:#085041;">✅ Hadir: ${hadir}</span>
+    <span class="modal-chip" style="background:var(--warn-light);color:#633806;">⏰ Terlambat: ${terlambat}</span>
+    <span class="modal-chip" style="background:var(--danger-light);color:#791F1F;">❌ Absen: ${absen}</span>
+    <span class="modal-chip" style="background:var(--purple-light);color:var(--purple);">🔄 Shift Minggu: ${shiftMinggu}</span>
+    <span class="modal-chip" style="background:var(--orange-light);color:var(--orange);">🚩 Libnas: ${masukLibur}</span>
+    <span class="modal-chip" style="background:var(--teal-light);color:var(--teal);">⚡ Lembur: ${lembur}</span>
+    <span class="modal-chip" style="background:var(--bg3);color:var(--t2);">📋 Total baris: ${rows.length}</span>
+  `;
+
+  if (!rows.length) {
+    document.getElementById('modal-tbody').innerHTML =
+      '<tr><td colspan="8"><div class="empty"><i class="ti ti-calendar-off"></i><p>Tidak ada data absensi bulan ini</p></div></td></tr>';
+    return;
+  }
+
+  document.getElementById('modal-tbody').innerHTML = rows.map((r, i) => {
+    const d      = new Date(r.tanggal + 'T12:00:00');
+    const hariNm = HARI_NAMA[d.getDay()];
+    const durMn  = r.durasiMenit || 0;
+    const durStr = durMn > 0 ? Math.floor(durMn/60) + 'j ' + (durMn%60) + 'm' : '–';
+    let jhBadge  = '<span class="badge badge-normal">Normal</span>';
+    if (r.jenisHari==='minggu') jhBadge = '<span class="badge badge-minggu">🔄 Minggu</span>';
+    if (r.jenisHari==='libur')  jhBadge = '<span class="badge badge-libur" title="'+r.namaLibur+'">🚩 Libnas</span>';
+    const lemburBadge = r.lembur ? '<span class="badge badge-lembur" style="margin-left:4px;">⚡</span>' : '';
+    return '<tr>' +
+      '<td style="color:var(--t3);">' + (i+1) + '</td>' +
+      '<td><strong>' + r.tanggal + '</strong></td>' +
+      '<td>' + hariNm + '</td>' +
+      '<td>' + jhBadge + '</td>' +
+      '<td>' + (r.masuk||'–') + '</td>' +
+      '<td>' + (r.pulang||'–') + '</td>' +
+      '<td>' + badgeHtml(r.status) + lemburBadge + '</td>' +
+      '<td style="font-size:12px;color:var(--t3);">' + durStr + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
 </script>
+
+<!-- MODAL DETAIL REKAP -->
+<div class="modal-overlay" id="modal-detail" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modal-title">Detail Absensi</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-stat" id="modal-stat"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>No</th><th>Tanggal</th><th>Hari</th><th>Jenis Hari</th><th>Jam Masuk</th><th>Jam Pulang</th><th>Status</th><th>Durasi</th></tr></thead>
+        <tbody id="modal-tbody"><tr><td colspan="8"><div class="spinner"></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
